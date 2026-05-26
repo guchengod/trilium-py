@@ -893,6 +893,75 @@ class ETAPI:
             soup.decompose()
             del soup
 
+    def sort_todo(self, date: Optional[str] = None, append_new_done: bool = False) -> bool:
+        """Sort todo list items for a specific date.
+
+        :param date: date string in format of "%Y-%m-%d", default to today
+        :param append_new_done:
+            False: Unfinished tasks first, finished tasks last. Keep original order within each group.
+            True: Unfinished tasks first, finished tasks last. Newly finished tasks will be appended after previously finished tasks.
+        :return: True if success, False if failed
+        """
+        if not date:
+            date = get_today()
+
+        soup = None
+        try:
+            content = self.get_day_note(date)
+            soup = BeautifulSoup(content, 'html.parser')
+            todo_labels = soup.find_all("label", {"class": "todo-list__label"})
+            if not todo_labels:
+                return True
+            items = []
+            for label in todo_labels:
+                checked = label.find("input").get("checked")
+                is_done = True if checked else False
+                li_tag = label.parent
+                items.append({
+                    'is_done': is_done,
+                    'li': li_tag
+                })
+            todo_list_ul = todo_labels[0].find_parent("ul", {"class": "todo-list"})
+            if not todo_list_ul:
+                return False
+
+            if not append_new_done:
+                sorted_items = sorted(items, key=lambda x: x['is_done'])
+                final_lis = [item['li'] for item in sorted_items]
+            else:
+                # Push newly checked items to the absolute bottom.
+                still_todo = [x for x in items if not x['is_done']]
+                old_done = []
+                idx = len(items) - 1
+                while idx >= 0 and items[idx]['is_done']:
+                    old_done.insert(0, items[idx])
+                    idx -= 1
+                new_done = [x for x in items[:idx + 1] if x['is_done']]
+                # Recombine: remaining todos -> old completed -> newly completed
+                final_lis = (
+                        [x['li'] for x in still_todo] +
+                        [x['li'] for x in old_done] +
+                        [x['li'] for x in new_done]
+                )
+
+            # Extract <li> nodes safely from DOM tree to prevent them from being destroyed by clear()
+            for li in final_lis:
+                li.extract()
+            # Clear container and re-append elements with the new order
+            todo_list_ul.clear()
+            for li in final_lis:
+                todo_list_ul.append(li)
+            new_content = str(soup)
+            return self.set_day_note(date, new_content)
+
+        except Exception as e:
+            logger.info(f"Sort todo failed: {e}")
+            return False
+        finally:
+            if soup:
+                soup.decompose()
+                del soup
+
     def add_periodic_todos(self, periodic_todos):
         today = datetime.today().date()
         weekday = today.isoweekday()  # Monday=1, Sunday=7

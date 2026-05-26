@@ -492,6 +492,23 @@ yesterday's note.
 ea.move_yesterday_unfinished_todo_to_today()
 ```
 
+### Sort todo
+
+Sort today's todos, put finished todos to the bottom and keep relative order
+```
+ea.sort_todo()
+```
+
+Sort for some day
+```
+ea.sort_todo(date="2026-05-26")
+```
+
+Sort and push newly finished items to the bottom
+```
+ea.sort_todo(append_new_done=True)
+```
+
 ## (Advanced Usage) 🚚 Upload Markdown files
 
 ### Upload single Markdown file with images
