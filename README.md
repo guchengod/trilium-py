@@ -51,6 +51,7 @@ Python client for Trilium Note's ETAPI and Web API, with additional advanced fea
       * [Update a TODO item](#update-a-todo-item)
       * [Delete a TODO item](#delete-a-todo-item)
       * [Move yesterday's unfinished todo to today](#move-yesterdays-unfinished-todo-to-today)
+      * [Sort todo](#sort-todo)
    * [(Advanced Usage) 🚚 Upload Markdown files](#advanced-usage--upload-markdown-files)
       * [Upload single Markdown file with images](#upload-single-markdown-file-with-images)
       * [Disable math formula parsing](#disable-math-formula-parsing)
