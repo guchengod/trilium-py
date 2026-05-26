@@ -1,3 +1,4 @@
+import mimetypes
 import os
 import re
 import string
@@ -7,12 +8,11 @@ from collections import deque
 from collections.abc import Mapping
 from datetime import datetime, timezone, timedelta
 from typing import Literal, Optional, Union
-from dateutil.tz import tzlocal
 
-import mimetypes
 import markdown2
 import requests
 from bs4 import BeautifulSoup
+from dateutil.tz import tzlocal
 from loguru import logger
 from natsort import natsort
 from tqdm import tqdm
@@ -169,7 +169,7 @@ class ETAPI:
             "branchId": branchId,
             "dateCreated": dateCreated,
         }
-        
+
         res = requests.post(url, json=clean_param(params), headers=self.get_header())
 
         return res.json()
@@ -439,7 +439,7 @@ class ETAPI:
             prefix: str = "",
             notePosition: int = 0,
             isExpanded: bool = False,
-            utcDateModified = None
+            utcDateModified=None
     ) -> dict:
         """
          In Trilium, a *clone* (internally called a "branch") links a note to a parent note,
@@ -893,8 +893,9 @@ class ETAPI:
             soup.decompose()
             del soup
 
-    def sort_todo(self, noteId: Optional[str] = None, date: Optional[str] = None, append_new_done: bool = False) -> bool:
-        """Sort todo list items for a specific note or date.
+    def sort_todo(self, noteId: Optional[str] = None, date: Optional[str] = None,
+                  append_new_done: bool = False) -> bool:
+        """Sort todo list items for a specific date.
 
         :param noteId: target note ID. If provided, the date parameter will be ignored.
         :param date: date string in format of "%Y-%m-%d", default to today
@@ -913,50 +914,53 @@ class ETAPI:
                 content = self.get_day_note(date)
 
             soup = BeautifulSoup(content, 'html.parser')
-            todo_labels = soup.find_all("label", {"class": "todo-list__label"})
-            if not todo_labels:
+            todo_lists = soup.find_all("ul", {"class": "todo-list"})
+            if not todo_lists:
                 return True
-            items = []
-            for label in todo_labels:
-                checked = label.find("input").get("checked")
-                is_done = True if checked else False
-                li_tag = label.parent
-                items.append({
-                    'is_done': is_done,
-                    'li': li_tag
-                })
-            todo_list_ul = todo_labels[0].find_parent("ul", {"class": "todo-list"})
-            if not todo_list_ul:
-                return False
 
-            if not append_new_done:
-                sorted_items = sorted(items, key=lambda x: x['is_done'])
-                final_lis = [item['li'] for item in sorted_items]
-            else:
-                # Push newly checked items to the absolute bottom.
-                still_todo = [x for x in items if not x['is_done']]
-                old_done = []
-                idx = len(items) - 1
-                while idx >= 0 and items[idx]['is_done']:
-                    old_done.insert(0, items[idx])
-                    idx -= 1
-                new_done = [x for x in items[:idx + 1] if x['is_done']]
-                # Recombine: remaining todos -> old completed -> newly completed
-                final_lis = (
-                        [x['li'] for x in still_todo] +
-                        [x['li'] for x in old_done] +
-                        [x['li'] for x in new_done]
-                )
+            for todo_list_ul in todo_lists:
+                todo_labels = todo_list_ul.find_all("label", {"class": "todo-list__label"})
+                if not todo_labels:
+                    continue
 
-            # Extract <li> nodes safely from DOM tree to prevent them from being destroyed by clear()
-            for li in final_lis:
-                li.extract()
-            # Clear container and re-append elements with the new order
-            todo_list_ul.clear()
-            for li in final_lis:
-                todo_list_ul.append(li)
+                items = []
+                for label in todo_labels:
+                    checked = label.find("input").get("checked")
+                    is_done = True if checked else False
+                    li_tag = label.parent
+                    items.append({
+                        'is_done': is_done,
+                        'li': li_tag
+                    })
+
+                if not append_new_done:
+                    sorted_items = sorted(items, key=lambda x: x['is_done'])
+                    final_lis = [item['li'] for item in sorted_items]
+                else:
+                    # Push newly checked items to the absolute bottom.
+                    still_todo = [x for x in items if not x['is_done']]
+                    old_done = []
+                    idx = len(items) - 1
+                    while idx >= 0 and items[idx]['is_done']:
+                        old_done.insert(0, items[idx])
+                        idx -= 1
+                    new_done = [x for x in items[:idx + 1] if x['is_done']]
+                    # Recombine: remaining todos -> old completed -> newly completed
+                    final_lis = (
+                            [x['li'] for x in still_todo] +
+                            [x['li'] for x in old_done] +
+                            [x['li'] for x in new_done]
+                    )
+
+                # Extract <li> nodes safely from DOM tree to prevent them from being destroyed by clear()
+                for li in final_lis:
+                    li.extract()
+                # Clear container and re-append elements with the new order
+                todo_list_ul.clear()
+                for li in final_lis:
+                    todo_list_ul.append(li)
+
             new_content = str(soup)
-            
             if noteId:
                 return self.update_note_content(noteId, new_content)
             else:
@@ -1034,9 +1038,9 @@ class ETAPI:
         return
 
     def upload_md_file(
-            self, file: str, 
-            parentNoteId: str, 
-            parse_math: bool = True, 
+            self, file: str,
+            parentNoteId: str,
+            parse_math: bool = True,
             image_and_file_as_attachments: bool = True,
             hasFrontMatter: bool = False,
             cleanText: bool = False
@@ -1052,12 +1056,12 @@ class ETAPI:
         # convert md to html
         with open(md_file, 'r', encoding='utf-8') as f:
             content = f.read()
-            
+
             utcDateCreated = None
             dateCreated = None
-            
+
             if hasFrontMatter:
-                
+
                 # Extract and strip FrontMatter (delimited by leading ---)
                 frontmatter_match = re.match(r'^---\n(.*?)\n---\n', content, re.DOTALL)
                 if frontmatter_match:
@@ -1075,13 +1079,15 @@ class ETAPI:
                             base, millis, tz = ts_match.groups()
                             millis = (millis or '.000')[:4].ljust(4, '0')  # ensure exactly .mmm
                             utcDateCreated = f"{base}{millis}Z"
-                            
+
                             # Convert to local timezone
-                            dt_utc = datetime.strptime(f"{base}{millis}", "%Y-%m-%d %H:%M:%S.%f").replace(tzinfo=timezone.utc)
+                            dt_utc = datetime.strptime(f"{base}{millis}", "%Y-%m-%d %H:%M:%S.%f").replace(
+                                tzinfo=timezone.utc)
                             local_tz = tzlocal()
                             dt_local = dt_utc.astimezone(local_tz)
                             utc_offset = dt_local.strftime("%z")  # e.g. "+0900"
-                            dateCreated = dt_local.strftime("%Y-%m-%d %H:%M:%S.") + f"{dt_local.microsecond // 1000:03d}{utc_offset}"
+                            dateCreated = dt_local.strftime(
+                                "%Y-%m-%d %H:%M:%S.") + f"{dt_local.microsecond // 1000:03d}{utc_offset}"
 
             # fix logseq image size format
             logseq_image_pat = r'(\!\[.*\]\(.*\))\{.*?:height.*width.*}'
@@ -1095,10 +1101,10 @@ class ETAPI:
                     content,
                     extras=['fenced-code-blocks', 'strike', 'tables', 'task_list', 'code-friendly'],
                 )
-                
+
                 if cleanText:
                     html = beautify_content(html)
-                
+
                 # logger.info(html)
             else:
                 # Parse math formulas
@@ -1328,7 +1334,8 @@ class ETAPI:
                     file_path = os.path.join(root, name)
                     logger.info(file_path)
                     try:
-                        self.upload_md_file(file=file_path, parentNoteId=current_parent_note_id, parse_math=parse_math, hasFrontMatter=hasFrontMatter, cleanText=cleanText)
+                        self.upload_md_file(file=file_path, parentNoteId=current_parent_note_id, parse_math=parse_math,
+                                            hasFrontMatter=hasFrontMatter, cleanText=cleanText)
                     except Exception as e:
                         error_files[os.path.abspath(file_path)] = e
 
