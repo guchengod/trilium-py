@@ -510,6 +510,11 @@ Sort and push newly finished items to the bottom
 ea.sort_todo(append_new_done=True)
 ```
 
+Sort for certain note by note id
+```
+ea.sort_todo(noteId="fn1DVZBsiQBG")
+```
+
 ## (Advanced Usage) 🚚 Upload Markdown files
 
 ### Upload single Markdown file with images

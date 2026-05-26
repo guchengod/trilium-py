@@ -893,21 +893,25 @@ class ETAPI:
             soup.decompose()
             del soup
 
-    def sort_todo(self, date: Optional[str] = None, append_new_done: bool = False) -> bool:
-        """Sort todo list items for a specific date.
+    def sort_todo(self, noteId: Optional[str] = None, date: Optional[str] = None, append_new_done: bool = False) -> bool:
+        """Sort todo list items for a specific note or date.
 
+        :param noteId: target note ID. If provided, the date parameter will be ignored.
         :param date: date string in format of "%Y-%m-%d", default to today
         :param append_new_done:
             False: Unfinished tasks first, finished tasks last. Keep original order within each group.
             True: Unfinished tasks first, finished tasks last. Newly finished tasks will be appended after previously finished tasks.
         :return: True if success, False if failed
         """
-        if not date:
-            date = get_today()
-
         soup = None
         try:
-            content = self.get_day_note(date)
+            if noteId:
+                content = self.get_note_content(noteId)
+            else:
+                if not date:
+                    date = get_today()
+                content = self.get_day_note(date)
+
             soup = BeautifulSoup(content, 'html.parser')
             todo_labels = soup.find_all("label", {"class": "todo-list__label"})
             if not todo_labels:
@@ -952,7 +956,11 @@ class ETAPI:
             for li in final_lis:
                 todo_list_ul.append(li)
             new_content = str(soup)
-            return self.set_day_note(date, new_content)
+            
+            if noteId:
+                return self.update_note_content(noteId, new_content)
+            else:
+                return self.set_day_note(date, new_content)
 
         except Exception as e:
             logger.info(f"Sort todo failed: {e}")

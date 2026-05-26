@@ -446,19 +446,21 @@ ea.move_yesterday_unfinished_todo_to_today()
 整理今天的待办事项，将已完成的排在后面，并保持原有相对顺序
 ```python
 ea.sort_todo()
-
 ```
 
 整理指定日期的待办事项
 ```python
 ea.sort_todo(date="2026-05-26")
-
 ```
 
 整理并将新完成的待办事项追加到最下方
 ```python
 ea.sort_todo(append_new_done=True)
+```
 
+整理指定笔记id的待办事项
+```python
+ea.sort_todo(noteId="fn1DVZBsiQBG")
 ```
 
 ## (高级用法) 🚚 上传Markdown文件
